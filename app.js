@@ -1,10 +1,14 @@
 //NavCoin KB-Helper for r/NavCoin
 
-//declaring dependencies
+//declaring dependencies and variables
 require('dotenv').config();
 
 const Snoowrap = require('snoowrap');
 const Snoostorm = require('snoostorm');
+
+var rep;
+var case_ident = true; var valid = false;
+var user;
 
 //Build Snoowrap and Snoostorm clients
 const r = new Snoowrap({
@@ -53,9 +57,30 @@ comments.on('comment', (comment) => {
 			var cmd = args[0];
 			var argument = args[1];
 			args = args.splice(1);
-			var rep;
-			var case_ident = true;
-			var user;
+			//Get Parent comment / submission author and add to reply message
+			var comment_parent = comment.parent_id;
+			//Identify type based off first three chars
+			//'1' is used to identify comments
+			if(comment_parent[1] === '1') {
+				//cut away type identifier
+				comment_parent = comment_parent.substring(3);
+				//I have no fucking idea what this is or why it works but it does somehow
+				r.getComment(comment_parent).author.name.then(function(result) {
+					console.log('Parent item is a comment. Parent commenter is ' + result.toString());
+					user = result.toString();
+				});
+			}
+			//'3' is used to identify submissions
+			else if(comment_parent[1] === '3') {
+				//cut away type identifier
+				comment_parent = comment_parent.substring(3);
+				//I have no fucking idea what this is or why it works but it does somehow
+				r.getSubmission(comment_parent).author.name.then(function(result) {
+					console.log('Parent item is a submission. OP is ' + result.toString());
+					user = result.toString();
+					console.log(user);
+				});
+			}
 				//Invoked when comment is !kbhelp xxx
 				if(cmd === 'kbhelp') {
 					switch(argument) {
@@ -69,11 +94,21 @@ comments.on('comment', (comment) => {
 						case 'list':
 							rep = 'This is a list of all currently supported commands.\n\nDefault commands: "about", "list"\nGeneral commands: "data", "bootstrap", "connection", "firewall", "backup", \n                                      "encrypt", "repair", "update", "restore", "electrum"\nSpecific commands: "navpi", "navpay", "paper", "navcoin"';
 							break;
+						case 'navpi':
+							rep = 'Learn how to setup the NavPi [here](https://info.navcoin.org/knowledge-base/how-to-set-up-the-navpi/).';
+							break;
+						case 'data':
+							rep = 'Learn how to find your data folder [here](https://info.navcoin.org/knowledge-base/how-to-find-the-navcoin-data-folder/).';
+							break;
+						case 'connection':
+							rep = 'Learn how to increase your connection count [here](https://info.navcoin.org/knowledge-base/how-to-increase-your-connection-count/).';
+							break;
 						}
-						console.log('!kbhelp ' + argument + ' invoked by ' + comment.link_author);
+						console.log('!kbhelp ' + argument + ' invoked');
+						valid = true
 				}
 				//invoked when comment is !github xxx
-				if(cmd === 'github') {
+				else if(cmd === 'github') {
 					switch(argument) {
 						default:
 							rep = 'NavCoin is completely open-source. You can find NavCoins protocol applications on https://github.com/NavCoin and second layer applications on https://github.com/Encrypt-S';
@@ -85,41 +120,14 @@ comments.on('comment', (comment) => {
 						case 'issue':
 							rep = 'To open an issue on GitHub click on "New issue" on [this page for NavCoin Core](https://github.com/NAVCoin/navcoin-core/issues) or [this page for NavPay](https://github.com/Encrypt-S/NavPay/issues)'
 						}
-						console.log('!GitHub ' + argument + ' invoked by ' + comment.link_author);
-						console.log('Parent submission from: ' + comment.parent_id);
-						//console.log('Parent submission author: ' + r.getComment('dykuzaz').author.name);
-						//r.getComment('dykuzaz').author.name.then(console.log)
+						console.log('!GitHub ' + argument + ' invoked.');
+						valid = true;
 				}
-				//Get Parent comment / submission author and add to reply message
-				var comment_parent = comment.parent_id;
-				//Identify type based off first three chars
-				//'1' is used to identify comments
-				if(comment_parent[1] === '1') {
-					//cut away type identifier
-					comment_parent = comment_parent.substring(3);
-					//I have no fucking idea what this is or why it works but it does somehow
-					r.getComment(comment_parent).author.name.then(function(result) {
-						console.log('Parent item is a comment. Parent commenter is ' + result.toString());
-						user = result.toString();
-					});
-				}
-				//'3' is used to identify submissions
-				else if(comment_parent[1] === '3') {
-					//cut away type identifier
-					comment_parent = comment_parent.substring(3);
-					//I have no fucking idea what this is or why it works but it does somehow
-					r.getSubmission(comment_parent).author.name.then(function(result) {
-						console.log('Parent item is a submission. OP is ' + result.toString());
-						user = result.toString();
-					});
-				}
-				try {
-					comment.reply(rep + '\n\nPinging parent /u/' + user);
-					console.log('Identified case: ' + case_ident + '\nReplied at ' + convertDate(comment.created) + '\n');
-				}
-				catch(err) {
-					console.log('Error encountered: \n' + err);
+				else {
+					console.log('No valid command invoked.');
 				}
 			}
+			comment.reply(rep + '\n\nPinging parent /u/' + user);
+			console.log('Identified case: ' + case_ident + '\nReplied at ' + convertDate(comment.created));
 			sleep(1000);
 		});
